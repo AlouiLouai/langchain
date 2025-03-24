@@ -102,21 +102,21 @@ A robust, scalable API for analyzing CVs against job descriptions, providing qua
 
 ### Developement
 
-Scripts
-    - npm run build: Compile TypeScript to JavaScript (dist/).
-    - npm run dev: Run with nodemon for live reloading.
-    - npm start: Run the compiled app.
-Dependencies
-    - express: Web framework.
-    - multer: File upload handling.
-    - axios: HTTP requests.
-    - cheerio: HTML parsing for LinkedIn scraping.
-    - pdf-parse: PDF text extraction.
-    - dotenv: Environment variable management.
-Dev Dependencies
-    - typescript: Type safety and compilation.
-    - nodemon: Hot reloading for development.
-    - @types/*: Type definitions for Node.js packages.
+#### Scripts
+- npm run build: Compile TypeScript to JavaScript (dist/).
+- npm run dev: Run with nodemon for live reloading.
+- npm start: Run the compiled app.
+#### Dependencies
+- express: Web framework.
+- multer: File upload handling.
+- axios: HTTP requests.
+- cheerio: HTML parsing for LinkedIn scraping.
+- pdf-parse: PDF text extraction.
+- dotenv: Environment variable management.
+#### Dev Dependencies
+- typescript: Type safety and compilation.
+- nodemon: Hot reloading for development.
+- @types/*: Type definitions for Node.js packages.
 
 ### Contributing 
 
@@ -131,4 +131,5 @@ Dev Dependencies
 This project is licensed under the MIT License - see the  file for details.
 
 ### Contact
+
 For questions or feedback, reach out to **louai.aloui@example.com** or open an issue on **GitHub**.
