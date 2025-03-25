@@ -1,58 +1,41 @@
-import axios from 'axios';
-import { summarizeText } from '../utils/textSummerisation';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { ForefrontLLM } from '../llms/forefrontLLM';
+import { StringOutputParser } from '@langchain/core/output_parsers';
 
-export async function analyzeCVWithLLM(cvText: string, jobDescription: string): Promise<string> {
+export async function analyzeCVWithLLM(cvText: string, jobDescription: string): Promise<{ analysis: string; fitPercentage: number }> {
     const apiKey = process.env.FORE_FRONT_API_KEY;
     if (!apiKey) {
         throw new Error('FORE_FRONT_API_KEY is missing in environment variables');
     }
 
-    const summarizedCV = summarizeText(cvText, 1000);
-    const prompt = `
-        Provide a structured qualitative assessment of how well the following CV matches this job description. Use this format:
-        - **Summary**: Overall fit assessment (e.g., "Strong match", "Fairly good").
-        - **Skills**: List relevant skills from the CV that match the job description.
-        - **Experience**: Describe how the candidate's experience aligns with the job requirements.
-        CV Content: ${summarizedCV}
-        Job Description: ${jobDescription}
-    `;
+    const llm = new ForefrontLLM(apiKey);
 
-    const model = process.env.FORE_FRONT_MODEL
-    const url = process.env.FORE_FRONT_BASE_URl
-    const requestBody = {
-        messages: [{ role: 'user', content: prompt }],
-        model: model,
-        max_tokens: 300, // Further reduced for speed
-        temperature: 0.7,
-    };
+    // Define the prompt as a message array
+    const promptTemplate = ChatPromptTemplate.fromMessages([
+        ['human', `
+            You are an expert recruiter analyzing a CV against a job description. Provide a structured assessment in this format:
+            - **Summary**: Overall fit (e.g., "Strong match", "Fairly good", "Poor match").
+            - **Skills Match**: List skills from the CV that match the job description and note any missing skills.
+            - **Experience Match**: Assess how the candidate's experience aligns with the job requirements.
+            - **Fit Score**: Estimate a fit percentage (0-100) based on skills, experience, and relevance.
 
-    const axiosInstance = axios.create({ timeout: 30000 });
+            CV Content: {cvText}
+            Job Description: {jobDescription}
+        `]
+    ]);
 
-    let retries = 2;
-    while (retries > 0) {
-        try {
-            if(url){
-                const response = await axiosInstance.post(url, requestBody, {
-                    headers: {
-                        Authorization: `Bearer ${apiKey}`,
-                        'Content-Type': 'application/json',
-                    },
-                });
-                return response.data.choices?.[0]?.message?.content || 'No analysis returned';
-            }
-        } catch (error) {
-            if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
-                retries--;
-                if (retries === 0) {
-                    throw new Error('LLM analysis failed: Request timed out after retries');
-                }
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            } else if (axios.isAxiosError(error)) {
-                throw new Error(`LLM analysis failed: ${error.response?.data?.error?.message || error.message}`);
-            } else {
-                throw new Error(`LLM analysis failed: ${(error as Error).message}`);
-            }
-        }
-    }
-    throw new Error('LLM analysis failed: Unexpected retry loop exit');
+    // Create a chain: prompt -> LLM -> output parser
+    const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser());
+
+    // Execute the chain
+    const rawAnalysis = await chain.invoke({ cvText, jobDescription });
+
+    // Parse the response to extract fit percentage
+    const fitMatch = rawAnalysis.match(/Fit Score.*?(\d+)/i);
+    const fitPercentage = fitMatch ? Math.min(parseInt(fitMatch[1]), 100) : 50; // Default to 50 if not found
+
+    // Clean the analysis of any unwanted markers
+    const cleanAnalysis = rawAnalysis.replace(/<\|im_end\|>|<\|im_start\|>|\s*assistant\s*/gi, '').trim();
+
+    return { analysis: cleanAnalysis, fitPercentage };
 }

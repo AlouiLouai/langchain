@@ -34,40 +34,9 @@ function fetchLinkedInJobDescription(jobUrl) {
         }
         catch (error) {
             console.warn('LinkedIn fetch failed, using default:', error);
-            return 'Default job description';
+            return 'Software Engineer with 3+ years experience in JavaScript, TypeScript, and AWS';
         }
     });
-}
-function calculateFitPercentage(cvText, jobDescription) {
-    const cvLower = cvText.toLowerCase();
-    const jobLower = jobDescription.toLowerCase();
-    // Extract skills
-    const skillsList = [
-        'javascript', 'typescript', 'python', 'express', 'nest js', 'strapi', 'gatsby', 'next.js',
-        'flask', 'react', 'redux', 'postgresql', 'mysql', 'mongodb', 'aws', 'docker', 'kubernetes',
-        'graphql', 'ci/cd', 'node.js', 'prisma', 'typeorm', 'sequelize',
-    ];
-    const cvSkills = skillsList.filter(skill => cvLower.includes(skill));
-    const jobSkills = skillsList.filter(skill => jobLower.includes(skill));
-    const skillMatch = jobSkills.length > 0
-        ? (cvSkills.filter(skill => jobSkills.includes(skill)).length / jobSkills.length) * 100
-        : cvSkills.length > 0 ? 70 : 50;
-    // Extract experience
-    const experienceRegex = /(\d+)\s*(?:year|yrs?)/gi;
-    const cvExperienceMatches = [...cvLower.matchAll(experienceRegex)];
-    const jobExperienceMatches = [...jobLower.matchAll(experienceRegex)];
-    const cvYears = cvExperienceMatches.reduce((sum, match) => sum + parseInt(match[1]), 0);
-    const jobYears = jobExperienceMatches.reduce((sum, match) => sum + parseInt(match[1]), 0) || 3; // Default to 3 years if unspecified
-    const experienceMatch = Math.min((cvYears / jobYears) * 100, 100);
-    // Keyword matching with broader terms
-    const jobKeywords = jobLower.split(' ').filter(word => word.length > 3 && !/default|description/.test(word)); // Exclude vague terms
-    const cvKeywords = cvLower.split(' ').filter(word => word.length > 3);
-    const keywordMatches = jobKeywords.length > 0
-        ? cvKeywords.filter(word => jobKeywords.includes(word)).length / jobKeywords.length * 100
-        : cvKeywords.length > 0 ? 50 : 0; // Fallback: 50% if CV has content
-    // Weighted average
-    const fitPercentage = (0.4 * skillMatch) + (0.3 * experienceMatch) + (0.3 * keywordMatches);
-    return Math.round(Math.min(fitPercentage, 100));
 }
 function uploadAndAnalyzeCV(req, res, next) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -85,13 +54,11 @@ function uploadAndAnalyzeCV(req, res, next) {
                 jobDescription = (0, textSummerisation_1.sanitizeText)(req.body.jobDescription);
             }
             else {
-                jobDescription = 'Default job description';
+                jobDescription = 'Software Engineer with 3+ years experience in JavaScript, TypeScript, and AWS';
             }
-            const analysis = yield (0, llmService_1.analyzeCVWithLLM)(pdfData.text, jobDescription);
-            const fitPercentage = calculateFitPercentage(pdfData.text, jobDescription);
-            // Clean analysis of markers
-            const cleanAnalysis = analysis.replace(/<\|im_end\|>|<\|im_start\|>|\s*assistant\s*/gi, '').trim();
-            res.json({ analysis: cleanAnalysis, fitPercentage });
+            // Get analysis and fit percentage from LLM
+            const { analysis, fitPercentage } = yield (0, llmService_1.analyzeCVWithLLM)(pdfData.text, jobDescription);
+            res.json({ analysis, fitPercentage });
         }
         catch (error) {
             console.error('Error in CV processing:', error);

@@ -8,19 +8,19 @@ A robust, scalable API for analyzing CVs against job descriptions, providing qua
 
 - **CV Parsing**: Extracts text from PDF resumes using `pdf-parse`.
 - **Job Description Scraping**: Fetches job details from LinkedIn URLs with `axios` and `cheerio`.
-- **LLM Analysis**: Generates qualitative assessments via Forefront’s Mistral-7B model.
-- **Fit Percentage**: Calculates a numerical fit score based on skills, experience, and keywords.
-- **Performance Optimized**: Includes text summarization, timeout retries, and efficient request handling.
+- **LLM Analysis**: Generates structured qualitative assessments and fit scores via Forefront’s Mistral-7B model with LangChain.
+- **Performance Optimized**: Includes text sanitization, extended timeout retries, and efficient request handling.
 - **Extensible**: Modular design with clear separation of concerns (controllers, services, middleware).
 
 ## Architecture
 
 - **Entry Point**: `src/index.ts` - Initializes Express and loads environment variables.
 - **Routing**: `src/routes/cvRoutes.ts` - Defines API endpoints.
-- **Controllers**: `src/controllers/cvController.ts` - Handles request logic, fit percentage calculation, and response formatting.
+- **Controllers**: `src/controllers/cvController.ts` - Handles request logic and response formatting.
 - **Services**:
   - `src/services/pdfService.ts` - PDF text extraction.
-  - `src/services/llmService.ts` - LLM integration with Forefront API.
+  - `src/services/llmService.ts` - LangChain integration with Forefront API.
+- **LLM**: `src/llms/forefrontLLM.ts` - Custom LangChain Runnable for Forefront LLM.
 - **Middleware**: `src/middleware/uploadMiddleware.ts` - Manages file uploads with `multer`.
 - **Build**: TypeScript compiled to `dist/` for production.
 
@@ -44,9 +44,11 @@ A robust, scalable API for analyzing CVs against job descriptions, providing qua
    npm install
 ```
 
-3. **Set Up Environment Variables: Create a .env file in the root directory**:
+3. **Set Up Environment Variables: Create a .env file from .env.example in the root directory**:
 ```bash
    FORE_FRONT_API_KEY=your_forefront_api_key
+   FORE_FRONT_BASE_URL=https://api.forefront.ai/v1/chat/completions
+   FORE_FRONT_MODEL=mistralai/Mistral-7B-v0.1
    PORT=3000
 ```
 
@@ -81,24 +83,24 @@ A robust, scalable API for analyzing CVs against job descriptions, providing qua
 
 ### Configuration
 
-- Timeout: Adjustable in llmService.ts (default: 30s) and cvController.ts (LinkedIn fetch: 10s).
-- Fit Scoring: Weights in calculateFitPercentage (skills: 40%, experience: 30%, keywords: 30%).
-- Skills List: Expandable in cvController.ts for custom skill matching.
+- Timeout: Configurable in forefrontLLM.ts (default: 60s, 3 retries with 2s delay).
 - Default Job Description: Falls back to "Software Engineer with 3+ years experience in JavaScript, TypeScript, and AWS" if unspecified.
+- LLM Model: Adjustable via FORE_FRONT_MODEL in .env (default: "mistralai/Mistral-7B-v0.1").
+- Max Tokens: Set to 500 in forefrontLLM.ts for detailed responses; adjustable for performance.
 
 ### Performance Considerations
 
-- Text Summarization: Limits CV input to 1000 characters for faster LLM processing.
-- Retry Logic: Handles Forefront API timeouts with 2 retries (1s delay).
-- Local Scoring: Fit percentage computed locally to reduce LLM dependency.
-- Optimized Payloads: Reduced max_tokens to 150 for quicker responses.
+- Retry Logic: Handles Forefront API timeouts with 3 retries (2s delay each), up from 2 retries (1s delay).
+- Timeout: Extended to 60s per request to accommodate larger CVs or slower API responses.
+- Text Sanitization: Ensures clean input via sanitizeText in textSummerisation.ts.
+- LLM-Driven Scoring: Fit percentage computed by the LLM, reducing local computation overhead.
 
 ### Extensibility
 
 - Custom Models: Swap "mistralai/Mistral-7B-v0.1" in llmService.ts with other Forefront models (e.g., "phi-2").
-- Scoring Logic: Modify weights or add new metrics (e.g., certifications) in calculateFitPercentage.
-- Caching: Add Redis or in-memory caching for repeated job descriptions.
-- NLP: Integrate advanced NLP (e.g., spaCy) for better keyword extraction.
+- Prompt Tuning: Modify the prompt in llmService.ts for custom analysis formats or scoring logic.
+- Caching: Add Redis or in-memory caching for repeated job descriptions in cvController.ts.
+- Fallbacks: Extend cvController.ts with custom fallback logic for LLM failures.
 
 ### Developement
 
@@ -113,6 +115,7 @@ A robust, scalable API for analyzing CVs against job descriptions, providing qua
 - cheerio: HTML parsing for LinkedIn scraping.
 - pdf-parse: PDF text extraction.
 - dotenv: Environment variable management.
+- @langchain/core: LangChain integration for LLM processing.
 #### Dev Dependencies
 - typescript: Type safety and compilation.
 - nodemon: Hot reloading for development.
