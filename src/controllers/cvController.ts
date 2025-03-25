@@ -4,10 +4,8 @@ import { extractTextFromPDF } from '../services/pdfService';
 import { analyzeCVWithLLM } from '../services/llmService';
 import axios from 'axios';
 import cheerio from 'cheerio';
+import { sanitizeText } from '../utils/textSummerisation';
 
-function sanitizeText(text: string): string {
-    return text.replace(/[\n\r\t\\]/g, ' ').replace(/\s+/g, ' ').trim();
-}
 
 async function fetchLinkedInJobDescription(jobUrl: string): Promise<string> {
     try {
@@ -40,7 +38,7 @@ function calculateFitPercentage(cvText: string, jobDescription: string): number 
     const jobSkills = skillsList.filter(skill => jobLower.includes(skill));
     const skillMatch = jobSkills.length > 0
         ? (cvSkills.filter(skill => jobSkills.includes(skill)).length / jobSkills.length) * 100
-        : cvSkills.length > 0 ? 50 : 0; // Fallback: 50% if CV has skills but job doesn’t specify
+        : cvSkills.length > 0 ? 70 : 50;
 
     // Extract experience
     const experienceRegex = /(\d+)\s*(?:year|yrs?)/gi;
@@ -56,16 +54,6 @@ function calculateFitPercentage(cvText: string, jobDescription: string): number 
     const keywordMatches = jobKeywords.length > 0
         ? cvKeywords.filter(word => jobKeywords.includes(word)).length / jobKeywords.length * 100
         : cvKeywords.length > 0 ? 50 : 0; // Fallback: 50% if CV has content
-
-    // Debugging logs
-    console.log('CV Skills:', cvSkills);
-    console.log('Job Skills:', jobSkills);
-    console.log('Skill Match:', skillMatch);
-    console.log('CV Years:', cvYears);
-    console.log('Job Years:', jobYears);
-    console.log('Experience Match:', experienceMatch);
-    console.log('Job Keywords:', jobKeywords);
-    console.log('Keyword Matches:', keywordMatches);
 
     // Weighted average
     const fitPercentage = (0.4 * skillMatch) + (0.3 * experienceMatch) + (0.3 * keywordMatches);

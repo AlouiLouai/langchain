@@ -1,20 +1,5 @@
 import axios from 'axios';
-import dotenv from 'dotenv';
-
-dotenv.config();
-
-function summarizeText(text: string, maxLength: number = 1000): string {
-    const sentences = text.split('\n').filter(line => line.trim());
-    let summary = '';
-    for (const sentence of sentences) {
-        if (summary.length + sentence.length <= maxLength) {
-            summary += sentence + ' ';
-        } else {
-            break;
-        }
-    }
-    return summary.trim() || text.substring(0, maxLength);
-}
+import { summarizeText } from '../utils/textSummerisation';
 
 export async function analyzeCVWithLLM(cvText: string, jobDescription: string): Promise<string> {
     const apiKey = process.env.FORE_FRONT_API_KEY;
@@ -24,16 +9,20 @@ export async function analyzeCVWithLLM(cvText: string, jobDescription: string): 
 
     const summarizedCV = summarizeText(cvText, 1000);
     const prompt = `
-        Provide a concise qualitative assessment of how well the following CV matches this job description.
+        Provide a structured qualitative assessment of how well the following CV matches this job description. Use this format:
+        - **Summary**: Overall fit assessment (e.g., "Strong match", "Fairly good").
+        - **Skills**: List relevant skills from the CV that match the job description.
+        - **Experience**: Describe how the candidate's experience aligns with the job requirements.
         CV Content: ${summarizedCV}
         Job Description: ${jobDescription}
     `;
 
-    const url = 'https://api.forefront.ai/v1/chat/completions';
+    const model = process.env.FORE_FRONT_MODEL
+    const url = process.env.FORE_FRONT_BASE_URl
     const requestBody = {
         messages: [{ role: 'user', content: prompt }],
-        model: 'mistralai/Mistral-7B-v0.1',
-        max_tokens: 150, // Further reduced for speed
+        model: model,
+        max_tokens: 300, // Further reduced for speed
         temperature: 0.7,
     };
 
@@ -42,13 +31,15 @@ export async function analyzeCVWithLLM(cvText: string, jobDescription: string): 
     let retries = 2;
     while (retries > 0) {
         try {
-            const response = await axiosInstance.post(url, requestBody, {
-                headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-            return response.data.choices?.[0]?.message?.content || 'No analysis returned';
+            if(url){
+                const response = await axiosInstance.post(url, requestBody, {
+                    headers: {
+                        Authorization: `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json',
+                    },
+                });
+                return response.data.choices?.[0]?.message?.content || 'No analysis returned';
+            }
         } catch (error) {
             if (axios.isAxiosError(error) && error.code === 'ECONNABORTED') {
                 retries--;

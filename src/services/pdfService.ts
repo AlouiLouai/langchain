@@ -6,7 +6,7 @@ export async function extractTextFromPDF(filePath: string): Promise<PDFExtractRe
     try {
         const pdfBuffer = readFileSync(filePath);
         const data = await pdfParse(pdfBuffer);
-        unlinkSync(filePath); // Clean up
+        unlinkSync(filePath);
         return {
             text: data.text,
             pageCount: data.numpages,
