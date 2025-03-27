@@ -12,17 +12,21 @@ export async function analyzeCVWithLLM(cvText: string, jobDescription: string): 
 
     // Define the prompt as a message array
     const promptTemplate = ChatPromptTemplate.fromMessages([
-        ['human', `
-            You are an expert recruiter analyzing a CV against a job description. Provide a structured assessment in this format:
-            - **Summary**: Overall fit (e.g., "Strong match", "Fairly good", "Poor match").
-            - **Skills Match**: List skills from the CV that match the job description and note any missing skills.
-            - **Experience Match**: Assess how the candidate's experience aligns with the job requirements.
-            - **Fit Score**: Estimate a fit percentage (0-100) based on skills, experience, and relevance.
-
-            CV Content: {cvText}
-            Job Description: {jobDescription}
+        ["human", `
+          You are an expert recruiter evaluating whether a candidate should apply for a job based on their CV and the job description. Provide a structured assessment:
+      
+          - **Overall Fit**: Clearly state if the candidate is a "Strong Match", "Moderate Match", or "Weak Match" for the job.
+          - **Key Strengths**: Highlight the most relevant skills and experience aligning with the job.
+          - **Gaps & Weaknesses**: Identify missing skills or experience that could be a challenge.
+          - **Final Recommendation**: Answer decisively with "Yes, you should apply" or "No, you should not apply", followed by a brief explanation.
+      
+          CV Content:
+          {cvText}
+      
+          Job Description:
+          {jobDescription}
         `]
-    ]);
+      ]);
 
     // Create a chain: prompt -> LLM -> output parser
     const chain = promptTemplate.pipe(llm).pipe(new StringOutputParser());
